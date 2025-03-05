@@ -1,5 +1,5 @@
 import { ref } from 'vue';
-import type { Product } from '../interfaces/interfaces'
+import type { Product, newProduct } from '../interfaces/interfaces'
 
 export const useProducts = () => {
   const error = ref<string | null>(null);
@@ -28,17 +28,45 @@ export const useProducts = () => {
     }
   }
 
-  const addProduct = async (/* product: Product */): Promise<void> => {
+  const getTokenAndUserId = (): { token: string, userId: string } => {
+    const token = localStorage.getItem('lsToken')
+    const userId = localStorage.getItem('userIDToken')
+    if (!token) {
+      throw new Error('No token available')
+    }
+    if(!userId){
+      throw new Error('No user id available')
+    }
+    return { token, userId }
+  }
+
+
+  const validateProduct = (product: newProduct):void  => {
+    if (!product.name) {
+      throw new Error('Please provide a product name')
+    }
+  }
+
+  const setDefaultValues = (product: newProduct, userId: string) => {
+    return {
+      name: product.name,
+      description: product.description || 'New Product Description default value',
+      imageURL: product.imageURL || 'https://picsum.photos/500/500',
+      price: product.price || 2,
+      stock: product.stock || 45,
+      discount: product.discount || false,
+      discountPct: product.discountPct || 0,
+      isHidden: product.isHidden || false,
+      _createdBy: userId
+    }
+  }
+
+  const addProduct = async (product: newProduct): Promise<void> => {
 
     try {
-      const token = localStorage.getItem('lsToken')
-      const userId = localStorage.getItem('userIDToken')
-      if (!token) {
-        throw new Error('No token available')
-      }
-      if(!userId){
-        throw new Error('No user id available')
-      }
+      const { token, userId } = getTokenAndUserId()
+      validateProduct(product)
+      const productWithDefaults = setDefaultValues(product, userId)
 
       const response = await fetch('https://ments-restapi.onrender.com/api/products', {
         method: 'POST',
@@ -46,17 +74,7 @@ export const useProducts = () => {
           'Content-Type': 'application/json',
           'auth-token': token
         },
-        body: JSON.stringify({
-          name: 'New Product from Frontend',
-          description: 'New Product Description',
-          imageURL: 'https://picsum.photos/500/500',
-          price: 2,
-          stock: 45,
-          discount: true,
-          discountPct: 0,
-          isHidden: false,
-          _createdBy: userId
-        })
+        body: JSON.stringify(productWithDefaults)
       })
 
       if (!response.ok) {
@@ -76,35 +94,85 @@ export const useProducts = () => {
 
   }
 
+  const deleteProductFromServer = async (id: string, token:string): Promise<void> => {
+    const response = await fetch(`https://ments-restapi.onrender.com/api/products/${id}`, {
+      method: 'DELETE',
+      headers: {
+        'auth-token': token
+      }
+    })
+
+    if (!response.ok) {
+      console.log("procuct not deleted")
+      throw new Error('No data available')
+    }
+  }
+
+  const removeProductFromState = (id:string): void => {
+    products.value = products.value.filter(product => product._id !== id)
+    console.log("products deleted", id)
+  }
+
+
   const deleteProduct = async (id: string): Promise<void> => {
     try {
-      const token = localStorage.getItem('lsToken')
-
-      if (!token) {
-        throw new Error('No token available')
-      }
-
+      const { token } = getTokenAndUserId()
+      await deleteProductFromServer(id, token)
+      removeProductFromState(id)
       console.log("id test", id)
-      const response = await fetch(`https://ments-restapi.onrender.com/api/products/${id}`, {
-        method: 'DELETE',
-        headers: {
-          'auth-token': token
-        }
-      })
+    }
+    catch (err) {
+      error.value = (err as Error).message
+    }
+  }
 
-      if (!response.ok) {
-        throw new Error('No data available')
-      }
+  const updateProductOnServer = async (id: string, updatedProduct: Partial<Product>, token: string): Promise<Product> => {
+    const response = await fetch(`https://ments-restapi.onrender.com/api/products/${id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'auth-token': token
+      },
+      body: JSON.stringify(updatedProduct)
+    })
 
-      products.value = products.value.filter(product => product._id !== id)
-      console.log("products deleted", id)
+    if (!response.ok) {
+      throw new Error('No data available')
+    }
+
+    const responseText = await response.text()
+    try {
+      return JSON.parse(responseText)
+    }
+    catch {
+      return { message: responseText } as unknown as Product
+    }
+
+    //return await response.json()
+  }
+
+  const updateProductInState = (id: string, updatedProduct: Product) => {
+    const index = products.value.findIndex(product => product._id === id)
+    if (index !== -1) {
+      products.value[index] = updatedProduct
+    }
+  }
+
+  const updateProduct = async (id: string, updatedProduct: Partial<Product>): Promise<void> => {
+    try {
+      const { token} = getTokenAndUserId()
+      const updatedProductResponse = await updateProductOnServer(id, updatedProduct, token)
+      updateProductInState(id, updatedProductResponse)
+      await fetchProducts()
 
     }
 
     catch (err) {
       error.value = (err as Error).message
     }
+
   }
+
 
   return {
     error,
@@ -112,7 +180,10 @@ export const useProducts = () => {
     products,
     fetchProducts,
     deleteProduct,
-    addProduct
+    addProduct,
+    updateProduct,
+
+    getTokenAndUserId
   }
 
  }

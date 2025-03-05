@@ -8,7 +8,27 @@ export type Product = {
   discount: boolean,
   discountPct: number
   isHidden: boolean,
+  _createdBy: string,
 }
+
+export type newProduct = Omit<Product, '_id'> & Partial<Pick<Product, '_createdBy'>>
+
+// export type newProduct = Omit<Product, 'id'> & {
+//   _createdBy?: string
+// }
+
+
+// export type newProduct = {
+//   name: string
+//   description: string
+//   imageURL: string,
+//   price: number,
+//   stock: number
+//   discount: boolean,
+//   discountPct: number
+//   isHidden: boolean,
+//   _createdBy: string
+// }
 
 export type User = {
   id: string,
