@@ -17,7 +17,7 @@
         <button @click="toggleCart" class="mx-6"> Cart</button>
 
         <!-- Routerlink to orders -->
-
+        <RouterLink to="/orders" class="mx-4">Orders</RouterLink>
 
       </nav>
     </div>

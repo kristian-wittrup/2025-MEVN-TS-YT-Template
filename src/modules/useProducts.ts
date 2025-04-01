@@ -173,6 +173,22 @@ export const useProducts = () => {
 
   }
 
+  const fetchProductById = async(id: string): Promise<Product[] | null> => {
+    try {
+      const response = await fetch(`https://ments-restapi.onrender.com/api/products/${id}`)
+      if (!response.ok) {
+        throw new Error('No data available')
+      }
+
+      const data: Product[] = await response.json()
+      console.log("product fetched", data)
+      return data
+    }
+    catch (err) {
+      console.log("error", err)
+      return null
+    }
+  }
 
   return {
     error,
@@ -183,7 +199,8 @@ export const useProducts = () => {
     addProduct,
     updateProduct,
 
-    getTokenAndUserId
+    getTokenAndUserId,
+    fetchProductById
   }
 
  }
